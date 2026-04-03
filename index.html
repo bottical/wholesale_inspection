@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>簡易検品 PoC</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>簡易検品システム PoC</h1>
+        <p class="subtitle">Excel / CSV 読込 → 卸先選択 → バーコード検品</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="btnResetSession" class="btn btn-danger" type="button">セッション削除</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel-import">
+        <div class="panel-header">
+          <h2>1. ファイル取込</h2>
+        </div>
+        <div class="panel-body stack-md">
+          <div class="note">
+            <strong>想定列名:</strong>
+            <span>卸先 / 卸先名 / 得意先</span>
+            <span>バーコード / JAN / JANコード</span>
+            <span>商品名</span>
+            <span>数量 / 予定数 / 出荷数</span>
+          </div>
+          <label class="file-drop" for="fileInput">
+            <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" />
+            <span>ファイルを選択</span>
+            <small>CSV / Excel に対応</small>
+          </label>
+          <div id="importSummary" class="summary-card empty">まだファイルは読み込まれていません。</div>
+          <div class="stack-sm">
+            <button id="btnLoadSample" class="btn" type="button">サンプルデータ読込</button>
+            <button id="btnExportProgress" class="btn btn-secondary" type="button">進捗JSON出力</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel-list">
+        <div class="panel-header">
+          <h2>2. 卸先一覧</h2>
+          <div class="inline-tools">
+            <input id="searchCustomer" type="search" placeholder="卸先検索" />
+          </div>
+        </div>
+        <div class="panel-body no-padding">
+          <div id="customerList" class="customer-list empty">ファイル読込後に一覧が表示されます。</div>
+        </div>
+      </section>
+
+      <section class="panel panel-inspection">
+        <div class="panel-header">
+          <div>
+            <h2>3. 検品画面</h2>
+            <p id="inspectionTitle" class="inspection-title">卸先を選択してください</p>
+          </div>
+          <button id="btnBackToList" class="btn btn-secondary" type="button">一覧に戻る</button>
+        </div>
+
+        <div class="panel-body stack-md">
+          <div class="mode-row">
+            <div class="mode-switch" role="tablist" aria-label="検品モード">
+              <button id="modeContinuous" class="mode-btn active" type="button">連続スキャン</button>
+              <button id="modeBulk" class="mode-btn" type="button">一括スキャン</button>
+            </div>
+            <div class="progress-box">
+              <div><strong>進捗:</strong> <span id="overallProgress">-</span></div>
+              <div><strong>状態:</strong> <span id="overallStatus">-</span></div>
+            </div>
+          </div>
+
+          <div id="continuousBox" class="scan-box stack-sm">
+            <label>
+              <span>バーコード読取</span>
+              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="バーコードをスキャン" />
+            </label>
+            <div class="hint">キーボード型バーコードリーダーを想定。Enterで確定します。</div>
+          </div>
+
+          <div id="bulkBox" class="scan-box stack-sm hidden">
+            <label>
+              <span>バーコード</span>
+              <input id="bulkBarcodeInput" type="text" inputmode="numeric" autocomplete="off" placeholder="バーコード" />
+            </label>
+            <label>
+              <span>数量</span>
+              <input id="bulkQtyInput" type="number" min="1" step="1" value="1" />
+            </label>
+            <button id="btnApplyBulk" class="btn" type="button">数量反映</button>
+          </div>
+
+          <div id="messageArea" class="message info">ここに結果が表示されます。</div>
+
+          <div class="split-grid">
+            <section class="card-section">
+              <div class="section-header">
+                <h3>商品一覧</h3>
+                <button id="btnUndo" class="btn btn-secondary" type="button">直前取消</button>
+              </div>
+              <div id="itemTableWrap" class="table-wrap empty">卸先を選択すると表示されます。</div>
+            </section>
+
+            <section class="card-section">
+              <div class="section-header">
+                <h3>読取履歴</h3>
+              </div>
+              <div id="logList" class="log-list empty">まだ履歴はありません。</div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

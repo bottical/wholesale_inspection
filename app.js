@@ -89,7 +89,15 @@ function bindEvents() {
   els.bulkBarcodeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      onApplyBulk();
+      const barcode = sanitizeBarcode(els.bulkBarcodeInput.value);
+      if (!barcode) {
+        AudioManager.playError();
+        setMessage('バーコードを入力してください。', 'warn');
+        return;
+      }
+      els.bulkQtyInput.focus();
+      els.bulkQtyInput.select();
+      setMessage('数量を入力してEnterで反映してください。', 'info');
     }
   });
   els.bulkQtyInput.addEventListener('keydown', (e) => {
@@ -556,7 +564,7 @@ function applyScan(barcode, qty, mode) {
   persistState();
   renderAll();
 
-  if (mode === 'bulk') {
+  if (mode === 'continuous') {
     AudioManager.playStart();
   } else {
     AudioManager.playMultipleStart();

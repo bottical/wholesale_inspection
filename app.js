@@ -33,6 +33,45 @@ const els = {
   btnBackToList: document.getElementById('btnBackToList'),
 };
 
+const AudioManager = (() => {
+  const sources = {
+    start: './start.mp3',
+    multipleStart: './multiple_start.mp3',
+    error: './error.mp3',
+    complete: './complete.mp3',
+  };
+  const baseAudios = {};
+
+  Object.entries(sources).forEach(([key, src]) => {
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    baseAudios[key] = audio;
+  });
+
+  function play(type) {
+    const base = baseAudios[type];
+    if (!base) return;
+    const audio = base.cloneNode(true);
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
+
+  return {
+    playStart() {
+      play('start');
+    },
+    playMultipleStart() {
+      play('multipleStart');
+    },
+    playError() {
+      play('error');
+    },
+    playComplete() {
+      play('complete');
+    },
+  };
+})();
+
 function init() {
   bindEvents();
   restoreState();
@@ -65,6 +104,7 @@ function bindEvents() {
   els.btnExportProgress.addEventListener('click', exportProgressJson);
   els.btnBackToList.addEventListener('click', () => {
     state.selectedCustomerId = null;
+    clearInspectionInputs();
     renderAll();
   });
 }
@@ -78,6 +118,13 @@ function restoreState() {
       state.session = parsed.session;
       state.selectedCustomerId = parsed.selectedCustomerId || null;
       state.mode = parsed.mode || 'continuous';
+      state.session.customerOrder.forEach((customerId) => {
+        const customer = state.session.customers[customerId];
+        if (customer) refreshCustomerStatus(customer);
+      });
+      if (!state.session.customers[state.selectedCustomerId]) {
+        state.selectedCustomerId = null;
+      }
     }
   } catch (error) {
     console.error('restoreState failed', error);
@@ -297,9 +344,17 @@ function renderCustomerList() {
   els.customerList.querySelectorAll('[data-customer-id]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.selectedCustomerId = btn.dataset.customerId;
+      clearInspectionInputs();
       persistState();
       renderAll();
       focusCurrentInput();
+    });
+  });
+
+  els.customerList.querySelectorAll('[data-reset-customer-id]').forEach(btn => {
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      resetSupplierInspection(btn.dataset.resetCustomerId);
     });
   });
 }
@@ -314,7 +369,7 @@ function createCustomerCard(customer) {
         ? 'diff'
         : 'todo';
   return `
-    <button class="customer-card ${state.selectedCustomerId === customer.id ? 'active' : ''}" data-customer-id="${escapeHtml(customer.id)}" type="button">
+    <article class="customer-card ${state.selectedCustomerId === customer.id ? 'active' : ''}">
       <div class="customer-top">
         <div class="customer-name">${escapeHtml(customer.name)}</div>
         <span class="badge ${badgeClass}">${statusLabel(customer.status)}</span>
@@ -324,7 +379,11 @@ function createCustomerCard(customer) {
         <span>進捗: ${summary.checkedQty} / ${summary.plannedQty}</span>
         <span>読取履歴: ${customer.scanLogs.length}</span>
       </div>
-    </button>
+      <div class="customer-actions">
+        <button class="btn btn-secondary" data-customer-id="${escapeHtml(customer.id)}" type="button">開く</button>
+        <button class="btn btn-danger" data-reset-customer-id="${escapeHtml(customer.id)}" type="button">リセット</button>
+      </div>
+    </article>
   `;
 }
 
@@ -403,12 +462,22 @@ function renderLogs(customer) {
   els.logList.className = 'log-list';
   els.logList.innerHTML = logs.map(log => `
     <div class="log-item">
-      <div class="log-top">
-        <span>${formatDateTime(log.at)}</span>
-        <span>${log.mode === 'bulk' ? '一括' : '連続'}</span>
+      <div class="log-row">
+        <div class="log-label">時刻</div>
+        <div class="log-value">${formatDateTime(log.at)}</div>
       </div>
-      <div class="log-main">${escapeHtml(log.barcode)} / +${log.qty}</div>
-      <div>${escapeHtml(log.itemName || '商品不明')}</div>
+      <div class="log-row">
+        <div class="log-label">読取</div>
+        <div class="log-value log-main">${escapeHtml(log.barcode)} / +${log.qty}</div>
+      </div>
+      <div class="log-row">
+        <div class="log-label">種別</div>
+        <div class="log-value">${log.mode === 'bulk' ? '一括' : '連続'}</div>
+      </div>
+      <div class="log-row">
+        <div class="log-label">商品名</div>
+        <div class="log-value">${escapeHtml(log.itemName || '商品不明')}</div>
+      </div>
     </div>
   `).join('');
 }
@@ -426,10 +495,12 @@ function onApplyBulk() {
   const barcode = sanitizeBarcode(els.bulkBarcodeInput.value);
   const qty = toPositiveInt(els.bulkQtyInput.value);
   if (!barcode) {
+    AudioManager.playError();
     setMessage('バーコードを入力してください。', 'warn');
     return;
   }
   if (qty <= 0) {
+    AudioManager.playError();
     setMessage('数量は1以上を入力してください。', 'warn');
     return;
   }
@@ -442,18 +513,28 @@ function onApplyBulk() {
 function applyScan(barcode, qty, mode) {
   const customer = getSelectedCustomer();
   if (!customer) {
+    AudioManager.playError();
     setMessage('先に卸先を選択してください。', 'warn');
     return;
   }
+
   const item = customer.itemsByBarcode[barcode];
   if (!item) {
-    SoundPlayer.playError();
+    AudioManager.playError();
     setMessage(`バーコード ${barcode} はこの卸先に存在しません。`, 'error');
     return;
   }
 
   const beforeQty = item.checkedQty;
-  item.checkedQty += qty;
+  const nextQty = beforeQty + qty;
+  if (nextQty > item.plannedQty) {
+    AudioManager.playError();
+    setMessage(`数量超過のため受理できません: ${item.itemName} は ${beforeQty} / ${item.plannedQty} です。`, 'warn');
+    return;
+  }
+
+  const previousStatus = customer.status;
+  item.checkedQty = nextQty;
   const log = {
     id: `log_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     barcode,
@@ -475,26 +556,20 @@ function applyScan(barcode, qty, mode) {
   persistState();
   renderAll();
 
-  const isOver = item.checkedQty > item.plannedQty;
-  const becameComplete = isCustomerCompletedJustNow(customer);
-  if (isOver) {
-    SoundPlayer.playScan();
-    setMessage(`数量超過です: ${item.itemName} が ${item.checkedQty} / ${item.plannedQty} になりました。`, 'warn');
+  if (mode === 'bulk') {
+    AudioManager.playStart();
   } else {
-    SoundPlayer.playScan();
-    setMessage(`${item.itemName} を +${qty} しました。`, 'ok');
+    AudioManager.playMultipleStart();
   }
+  setMessage(`${item.itemName} を +${qty} しました。`, 'ok');
 
+  const becameComplete = previousStatus !== 'done' && customer.status === 'done';
   if (becameComplete) {
-    SoundPlayer.playComplete();
+    AudioManager.playComplete();
     setMessage(`卸先「${customer.name}」の検品が完了しました。`, 'ok');
   }
 
   focusCurrentInput();
-}
-
-function isCustomerCompletedJustNow(customer) {
-  return customer.status === 'done';
 }
 
 function undoLastAction() {
@@ -502,9 +577,10 @@ function undoLastAction() {
     setMessage('取り消せる操作がありません。', 'warn');
     return;
   }
-  const { customerId, barcode, qty, logId, beforeQty } = state.lastAction;
+  const { customerId, barcode, logId, beforeQty } = state.lastAction;
   const customer = state.session.customers[customerId];
   if (!customer || !customer.itemsByBarcode[barcode]) {
+    AudioManager.playError();
     setMessage('直前操作の取消に失敗しました。', 'error');
     return;
   }
@@ -516,6 +592,31 @@ function undoLastAction() {
   persistState();
   renderAll();
   setMessage('直前の操作を取り消しました。', 'ok');
+}
+
+
+function resetSupplierInspection(supplierId) {
+  if (!state.session || !supplierId) return;
+  const customer = state.session.customers[supplierId];
+  if (!customer) return;
+
+  const ok = confirm('この卸先の検品状態をリセットしますか？ 検品済数と読取履歴が初期化されます。');
+  if (!ok) return;
+
+  Object.values(customer.itemsByBarcode).forEach((item) => {
+    item.checkedQty = 0;
+  });
+  customer.scanLogs = [];
+  refreshCustomerStatus(customer);
+
+  if (state.lastAction?.customerId === supplierId) {
+    state.lastAction = null;
+  }
+
+  clearInspectionInputs();
+  persistState();
+  renderAll();
+  setMessage(`卸先「${customer.name}」の検品状態をリセットしました。`, 'ok');
 }
 
 function refreshCustomerStatus(customer) {
@@ -558,6 +659,13 @@ function statusLabel(status) {
   }
 }
 
+
+function clearInspectionInputs() {
+  els.scanInput.value = '';
+  els.bulkBarcodeInput.value = '';
+  els.bulkQtyInput.value = '1';
+}
+
 function setMessage(text, type = 'info') {
   els.messageArea.className = `message ${type}`;
   els.messageArea.textContent = text;
@@ -578,6 +686,7 @@ function resetSession() {
   state.session = null;
   state.selectedCustomerId = null;
   state.lastAction = null;
+  clearInspectionInputs();
   localStorage.removeItem(STORAGE_KEY);
   renderAll();
   setMessage('セッションを削除しました。', 'ok');
@@ -628,67 +737,5 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-
-const SoundPlayer = (() => {
-  let ctx;
-
-  function getCtx() {
-    if (!ctx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      ctx = AudioContext ? new AudioContext() : null;
-    }
-    return ctx;
-  }
-
-  function playTone(freq, start, duration, gainValue = 0.05, type = 'sine') {
-    const audio = getCtx();
-    if (!audio) return;
-    const osc = audio.createOscillator();
-    const gain = audio.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    osc.connect(gain);
-    gain.connect(audio.destination);
-    osc.start(start);
-    osc.stop(start + duration + 0.02);
-  }
-
-  function ensureResumed() {
-    const audio = getCtx();
-    if (audio && audio.state === 'suspended') {
-      audio.resume();
-    }
-    return audio;
-  }
-
-  return {
-    playScan() {
-      const audio = ensureResumed();
-      if (!audio) return;
-      const now = audio.currentTime;
-      playTone(880, now, 0.08, 0.04, 'triangle');
-      playTone(1174, now + 0.05, 0.08, 0.03, 'triangle');
-    },
-    playComplete() {
-      const audio = ensureResumed();
-      if (!audio) return;
-      const now = audio.currentTime;
-      playTone(523.25, now, 0.12, 0.05, 'sine');
-      playTone(659.25, now + 0.12, 0.12, 0.05, 'sine');
-      playTone(783.99, now + 0.24, 0.16, 0.05, 'sine');
-      playTone(1046.5, now + 0.40, 0.22, 0.05, 'sine');
-    },
-    playError() {
-      const audio = ensureResumed();
-      if (!audio) return;
-      const now = audio.currentTime;
-      playTone(220, now, 0.14, 0.04, 'sawtooth');
-      playTone(180, now + 0.08, 0.16, 0.04, 'sawtooth');
-    }
-  };
-})();
 
 init();

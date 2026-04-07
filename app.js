@@ -223,10 +223,10 @@ function buildSessionFromRows(rows, fileName = 'sample') {
   }
 
   const header = rows[0].map(v => normalizeHeader(v));
-  const customerIdx = findHeaderIndex(header, ['卸先', '卸先名', '得意先', '納品先', '届け先']);
-  const barcodeIdx = findHeaderIndex(header, ['バーコード', 'jan', 'janコード', 'barcode']);
-  const itemNameIdx = findHeaderIndex(header, ['商品名', '品名', '商品']);
-  const qtyIdx = findHeaderIndex(header, ['数量', '予定数', '出荷数', '数']);
+  const customerIdx = findHeaderIndex(header, ['卸先', '卸先名', '得意先', '納品先', '届け先', '合梱注文コード']);
+  const barcodeIdx = findHeaderIndex(header, ['バーコード', 'jan', 'janコード', 'barcode', '商品代替コード']);
+  const itemNameIdx = findHeaderIndex(header, ['品名', '商品', '商品コード']);
+  const qtyIdx = findHeaderIndex(header, ['数量', '予定数', '出荷数', '予定数量']);
 
   if ([customerIdx, barcodeIdx, itemNameIdx, qtyIdx].some(idx => idx < 0)) {
     throw new Error('必要列が見つかりません。想定列名を確認してください。');

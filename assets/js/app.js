@@ -44,10 +44,10 @@ const els = {
 // -----------------------------
 const AudioManager = (() => {
   const sources = {
-    start: './audio/start.mp3',
-    multipleStart: './audio/multiple_start.mp3',
-    error: './audio/error.mp3',
-    complete: './audio/complete.mp3',
+    start: '../audio/start.mp3',
+    multipleStart: '../audio/multiple_start.mp3',
+    error: '../audio/error.mp3',
+    complete: '../audio/complete.mp3',
   };
   const baseAudios = {};
 

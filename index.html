@@ -18,22 +18,19 @@
       <section id="panelImport" class="panel panel-import">
         <div class="panel-header">
           <h2>データ取込</h2>
-          <button id="btnToggleImport" class="btn btn-secondary" type="button" aria-expanded="true">取込パネルを閉じる</button>
         </div>
         <div class="panel-body stack-md">
-          <div class="import-collapsible stack-md">
-            <div class="note">
-              <strong>対応ファイル形式：</strong>Excel / CSV
-              <br />
-              <span>主要項目：卸先・バーコード・商品名・数量</span>
-            </div>
-            <label class="file-drop" for="fileInput">
-              <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" />
-              <span>ファイルを選択</span>
-              <small>CSV / Excel ファイルを選択して取り込みます</small>
-            </label>
-            <button id="btnResetSession" class="btn btn-quiet" type="button">読込データを初期化</button>
+          <div class="note">
+            <strong>対応ファイル形式：</strong>Excel / CSV
+            <br />
+            <span>主要項目：卸先・バーコード・商品名・数量</span>
           </div>
+          <label class="file-drop" for="fileInput">
+            <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" />
+            <span>ファイルを選択</span>
+            <small>CSV / Excel ファイルを選択して取り込みます</small>
+          </label>
+          <button id="btnResetSession" class="btn btn-quiet" type="button">読込データを初期化</button>
           <div id="importSummary" class="summary-card empty">検品データが未読込です。ファイルを選択してください。</div>
         </div>
       </section>

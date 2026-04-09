@@ -7,7 +7,6 @@ const state = {
   session: null,
   selectedCustomerId: null,
   mode: 'continuous',
-  isImportCollapsed: false,
   lastAction: null,
 };
 
@@ -37,8 +36,6 @@ const els = {
   btnUndo: document.getElementById('btnUndo'),
   btnResetSession: document.getElementById('btnResetSession'),
   btnBackToList: document.getElementById('btnBackToList'),
-  panelImport: document.getElementById('panelImport'),
-  btnToggleImport: document.getElementById('btnToggleImport'),
 };
 
 
@@ -124,7 +121,6 @@ function bindEvents() {
   });
   els.btnUndo.addEventListener('click', undoLastAction);
   els.btnResetSession.addEventListener('click', resetSession);
-  els.btnToggleImport.addEventListener('click', toggleImportPanel);
   els.btnBackToList.addEventListener('click', () => {
     state.selectedCustomerId = null;
     clearInspectionInputs();
@@ -141,7 +137,6 @@ function restoreState() {
       state.session = parsed.session;
       state.selectedCustomerId = parsed.selectedCustomerId || null;
       state.mode = parsed.mode || 'continuous';
-      state.isImportCollapsed = Boolean(parsed.isImportCollapsed);
       state.session.customerOrder.forEach((customerId) => {
         const customer = state.session.customers[customerId];
         if (customer) refreshCustomerStatus(customer);
@@ -162,7 +157,6 @@ function persistState() {
       session: state.session,
       selectedCustomerId: state.selectedCustomerId,
       mode: state.mode,
-      isImportCollapsed: state.isImportCollapsed,
     })
   );
 }
@@ -332,28 +326,10 @@ function setMode(mode) {
 }
 
 function renderAll() {
-  renderImportPanel();
   renderImportSummary();
   renderCustomerList();
   renderInspection();
   renderMode();
-}
-
-function renderImportPanel() {
-  const collapsed = state.isImportCollapsed;
-  els.panelImport.classList.toggle('is-collapsed', collapsed);
-  els.btnToggleImport.textContent = collapsed ? '取込パネルを開く' : '取込パネルを閉じる';
-  els.btnToggleImport.setAttribute('aria-expanded', String(!collapsed));
-}
-
-function toggleImportPanel() {
-  if (!state.session && !state.isImportCollapsed) {
-    setMessage('データ未読込時は取込パネルを閉じられません。', 'warn');
-    return;
-  }
-  state.isImportCollapsed = !state.isImportCollapsed;
-  persistState();
-  renderImportPanel();
 }
 
 function renderImportSummary() {
@@ -744,7 +720,6 @@ function resetSession() {
   if (!confirm('読み込み済みデータを初期化します。よろしいですか？')) return;
   state.session = null;
   state.selectedCustomerId = null;
-  state.isImportCollapsed = false;
   state.lastAction = null;
   clearInspectionInputs();
   localStorage.removeItem(STORAGE_KEY);

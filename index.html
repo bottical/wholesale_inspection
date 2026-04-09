@@ -10,20 +10,18 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand-block">
-        <p class="eyebrow">Inspection Support Demo</p>
-        <h1>検品支援システム</h1>
-        <p class="subtitle">ファイル取込から検品進捗の可視化までを、一つの画面でスムーズに運用できます。</p>
-      </div>
+      <h1>検品支援システム</h1>
+      <p class="subtitle">卸先一覧から検品対象を選択し、進捗と読取履歴を確認できます。</p>
     </header>
 
     <main class="layout">
-      <aside class="sidebar stack-lg">
-        <section class="panel panel-import">
-          <div class="panel-header">
-            <h2>データ取込</h2>
-          </div>
-          <div class="panel-body stack-md">
+      <section id="panelImport" class="panel panel-import">
+        <div class="panel-header">
+          <h2>データ取込</h2>
+          <button id="btnToggleImport" class="btn btn-secondary" type="button" aria-expanded="true">取込パネルを閉じる</button>
+        </div>
+        <div class="panel-body stack-md">
+          <div class="import-collapsible stack-md">
             <div class="note">
               <strong>対応ファイル形式：</strong>Excel / CSV
               <br />
@@ -34,24 +32,24 @@
               <span>ファイルを選択</span>
               <small>CSV / Excel ファイルを選択して取り込みます</small>
             </label>
-            <div id="importSummary" class="summary-card empty">検品データが未読込です。ファイルを選択してください。</div>
             <button id="btnResetSession" class="btn btn-quiet" type="button">読込データを初期化</button>
           </div>
-        </section>
+          <div id="importSummary" class="summary-card empty">検品データが未読込です。ファイルを選択してください。</div>
+        </div>
+      </section>
 
-        <section class="panel panel-list">
-          <div class="panel-header panel-header-stacked">
-            <div>
-              <h2>卸先一覧</h2>
-              <p class="section-note">卸先ごとの進捗と読取履歴を確認できます。</p>
-            </div>
-            <input id="searchCustomer" type="search" placeholder="卸先名で検索" />
+      <section class="panel panel-list">
+        <div class="panel-header panel-header-stacked">
+          <div>
+            <h2>卸先一覧</h2>
+            <p class="section-note">卸先ごとの進捗と読取履歴を確認できます。</p>
           </div>
-          <div class="panel-body no-padding">
-            <div id="customerList" class="customer-list empty">データ取込後に卸先一覧が表示されます。</div>
-          </div>
-        </section>
-      </aside>
+          <input id="searchCustomer" type="search" placeholder="卸先名で検索" />
+        </div>
+        <div class="panel-body no-padding">
+          <div id="customerList" class="customer-list empty">データ取込後に卸先一覧が表示されます。</div>
+        </div>
+      </section>
 
       <section class="panel panel-inspection">
         <div class="panel-header panel-header-inspection">

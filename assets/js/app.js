@@ -1,5 +1,8 @@
-const STORAGE_KEY = 'simple-inspection-poc-state-v1';
+const STORAGE_KEY = 'inspection-support-state-v2';
 
+// -----------------------------
+// State
+// -----------------------------
 const state = {
   session: null,
   selectedCustomerId: null,
@@ -7,6 +10,10 @@ const state = {
   lastAction: null,
 };
 
+
+// -----------------------------
+// DOM Elements
+// -----------------------------
 const els = {
   fileInput: document.getElementById('fileInput'),
   importSummary: document.getElementById('importSummary'),
@@ -27,18 +34,20 @@ const els = {
   bulkBox: document.getElementById('bulkBox'),
   messageArea: document.getElementById('messageArea'),
   btnUndo: document.getElementById('btnUndo'),
-  btnLoadSample: document.getElementById('btnLoadSample'),
-  btnResetSession: document.getElementById('btnResetSession'),
-  btnExportProgress: document.getElementById('btnExportProgress'),
-  btnBackToList: document.getElementById('btnBackToList'),
+    btnResetSession: document.getElementById('btnResetSession'),
+    btnBackToList: document.getElementById('btnBackToList'),
 };
 
+
+// -----------------------------
+// Audio
+// -----------------------------
 const AudioManager = (() => {
   const sources = {
-    start: './start.mp3',
-    multipleStart: './multiple_start.mp3',
-    error: './error.mp3',
-    complete: './complete.mp3',
+    start: '../audio/start.mp3',
+    multipleStart: '../audio/multiple_start.mp3',
+    error: '../audio/error.mp3',
+    complete: '../audio/complete.mp3',
   };
   const baseAudios = {};
 
@@ -72,6 +81,10 @@ const AudioManager = (() => {
   };
 })();
 
+
+// -----------------------------
+// App Lifecycle
+// -----------------------------
 function init() {
   bindEvents();
   restoreState();
@@ -97,7 +110,7 @@ function bindEvents() {
       }
       els.bulkQtyInput.focus();
       els.bulkQtyInput.select();
-      setMessage('数量を入力してEnterで反映してください。', 'info');
+      setMessage('数量を入力して Enter で登録してください。', 'info');
     }
   });
   els.bulkQtyInput.addEventListener('keydown', (e) => {
@@ -107,9 +120,7 @@ function bindEvents() {
     }
   });
   els.btnUndo.addEventListener('click', undoLastAction);
-  els.btnLoadSample.addEventListener('click', loadSampleData);
   els.btnResetSession.addEventListener('click', resetSession);
-  els.btnExportProgress.addEventListener('click', exportProgressJson);
   els.btnBackToList.addEventListener('click', () => {
     state.selectedCustomerId = null;
     clearInspectionInputs();
@@ -171,6 +182,10 @@ async function onFileSelected(event) {
   }
 }
 
+
+// -----------------------------
+// Import
+// -----------------------------
 function readFileRows(file) {
   const name = String(file.name || '').toLowerCase();
   if (name.endsWith('.csv')) {
@@ -299,6 +314,10 @@ function toPositiveInt(value) {
   return Math.max(0, Math.floor(num));
 }
 
+
+// -----------------------------
+// Render
+// -----------------------------
 function setMode(mode) {
   state.mode = mode;
   persistState();
@@ -316,7 +335,7 @@ function renderAll() {
 function renderImportSummary() {
   if (!state.session) {
     els.importSummary.className = 'summary-card empty';
-    els.importSummary.textContent = 'まだファイルは読み込まれていません。';
+    els.importSummary.textContent = '検品データが未読込です。ファイルを選択してください。';
     return;
   }
   const customerCount = state.session.customerOrder.length;
@@ -337,7 +356,7 @@ function renderCustomerList() {
   const q = String(els.searchCustomer.value || '').trim().toLowerCase();
   if (!state.session) {
     els.customerList.className = 'customer-list empty';
-    els.customerList.textContent = 'ファイル読込後に一覧が表示されます。';
+    els.customerList.textContent = 'データ取込後に卸先一覧が表示されます。';
     return;
   }
 
@@ -398,13 +417,13 @@ function createCustomerCard(customer) {
 function renderInspection() {
   const customer = getSelectedCustomer();
   if (!customer) {
-    els.inspectionTitle.textContent = '卸先を選択してください';
+    els.inspectionTitle.textContent = '卸先を選択すると、ここに検品対象が表示されます。';
     els.overallProgress.textContent = '-';
     els.overallStatus.textContent = '-';
     els.itemTableWrap.className = 'table-wrap empty';
-    els.itemTableWrap.textContent = '卸先を選択すると表示されます。';
+    els.itemTableWrap.textContent = '卸先を選択すると商品一覧が表示されます。';
     els.logList.className = 'log-list empty';
-    els.logList.textContent = 'まだ履歴はありません。';
+    els.logList.textContent = '読取履歴はまだありません。';
     return;
   }
 
@@ -464,7 +483,7 @@ function renderLogs(customer) {
   const logs = [...customer.scanLogs].reverse();
   if (logs.length === 0) {
     els.logList.className = 'log-list empty';
-    els.logList.textContent = 'まだ履歴はありません。';
+    els.logList.textContent = '読取履歴はまだありません。';
     return;
   }
   els.logList.className = 'log-list';
@@ -490,6 +509,10 @@ function renderLogs(customer) {
   `).join('');
 }
 
+
+// -----------------------------
+// Scan Operations
+// -----------------------------
 function onContinuousScanKeydown(event) {
   if (event.key !== 'Enter') return;
   event.preventDefault();
@@ -627,6 +650,10 @@ function resetSupplierInspection(supplierId) {
   setMessage(`卸先「${customer.name}」の検品状態をリセットしました。`, 'ok');
 }
 
+
+// -----------------------------
+// Utility
+// -----------------------------
 function refreshCustomerStatus(customer) {
   const items = Object.values(customer.itemsByBarcode);
   const hasOver = items.some(item => item.checkedQty > item.plannedQty);
@@ -690,45 +717,14 @@ function focusCurrentInput() {
 }
 
 function resetSession() {
-  if (!confirm('現在のセッションを削除します。よろしいですか？')) return;
+  if (!confirm('読み込み済みデータを初期化します。よろしいですか？')) return;
   state.session = null;
   state.selectedCustomerId = null;
   state.lastAction = null;
   clearInspectionInputs();
   localStorage.removeItem(STORAGE_KEY);
   renderAll();
-  setMessage('セッションを削除しました。', 'ok');
-}
-
-function exportProgressJson() {
-  if (!state.session) {
-    setMessage('出力するセッションがありません。', 'warn');
-    return;
-  }
-  const blob = new Blob([JSON.stringify(state.session, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `inspection-progress-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function loadSampleData() {
-  const rows = [
-    ['卸先名', 'バーコード', '商品名', '数量'],
-    ['A商事', '4901000000011', 'サンプル商品A', 3],
-    ['A商事', '4901000000028', 'サンプル商品B', 2],
-    ['B物産', '4901000000011', 'サンプル商品A', 1],
-    ['B物産', '4901000000035', 'サンプル商品C', 4],
-    ['C卸', '4901000000042', 'サンプル商品D', 5],
-  ];
-  state.session = buildSessionFromRows(rows, 'sample.xlsx');
-  state.selectedCustomerId = state.session.customerOrder[0] || null;
-  state.lastAction = null;
-  persistState();
-  renderAll();
-  setMessage('サンプルデータを読み込みました。', 'ok');
+  setMessage('読込データを初期化しました。', 'ok');
 }
 
 function formatDateTime(value) {

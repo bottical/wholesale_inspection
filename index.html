@@ -11,7 +11,7 @@
   <div class="app-shell">
     <header class="topbar">
       <h1>検品支援システム</h1>
-      <p class="subtitle">卸先一覧から検品対象を選択し、進捗と読取履歴を確認できます。</p>
+      <p class="subtitle">作業一覧から検品対象を選択し、進捗と読取履歴を確認できます。</p>
     </header>
 
     <main class="layout">
@@ -38,10 +38,10 @@
       <section class="panel panel-list">
         <div class="panel-header panel-header-stacked">
           <div>
-            <h2>卸先一覧</h2>
-            <p class="section-note">卸先ごとの進捗と読取履歴を確認できます。</p>
+            <h2>作業一覧</h2>
+            <p class="section-note">作業ごとの進捗と読取履歴を確認できます。</p>
           </div>
-          <input id="searchCustomer" type="search" placeholder="卸先名で検索" />
+          <input id="searchCustomer" type="search" placeholder="ピッキングNo.で検索" />
         </div>
         <div class="panel-body no-padding">
           <div id="customerList" class="customer-list empty">データ取込後に卸先一覧が表示されます。</div>
@@ -52,7 +52,7 @@
         <div class="panel-header panel-header-inspection">
           <div>
             <h2>検品作業</h2>
-            <p id="inspectionTitle" class="inspection-title">卸先を選択すると、ここに検品対象が表示されます。</p>
+            <p id="inspectionTitle" class="inspection-title">作業を選択すると、ここに検品対象が表示されます。</p>
           </div>
           <button id="btnBackToList" class="btn btn-secondary" type="button">一覧表示に戻る</button>
         </div>
@@ -74,9 +74,7 @@
               <span>バーコード入力</span>
               <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="バーコードを読み取り後、Enter で登録" />
             </label>
-            <div class="hint">キーボード型バーコードリーダーでの連続入力に対応しています。</div>
           </div>
-
           <div id="bulkBox" class="scan-box stack-sm hidden">
             <label>
               <span>バーコード</span>

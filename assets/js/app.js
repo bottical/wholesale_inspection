@@ -238,33 +238,40 @@ function buildSessionFromRows(rows, fileName = 'sample') {
   }
 
   const header = rows[0].map(v => normalizeHeader(v));
-  const customerIdx = findHeaderIndex(header, ['卸先', '卸先名', '得意先', '納品先', '届け先', '合梱注文コード']);
+  const groupCodeIdx = findHeaderIndex(header, ['合梱注文コード']);
+  const supplierNameIdx = findHeaderIndex(header, ['仕入先名', '仕入先']);
   const barcodeIdx = findHeaderIndex(header, ['バーコード', 'jan', 'janコード', 'barcode', '商品代替コード']);
   const itemNameIdx = findHeaderIndex(header, ['品名', '商品', '商品コード']);
   const qtyIdx = findHeaderIndex(header, ['数量', '予定数', '出荷数', '予定数量']);
 
-  if ([customerIdx, barcodeIdx, itemNameIdx, qtyIdx].some(idx => idx < 0)) {
+  if ([groupCodeIdx, barcodeIdx, itemNameIdx, qtyIdx].some(idx => idx < 0)) {
     throw new Error('必要列が見つかりません。想定列名を確認してください。');
   }
 
   const customers = {};
   rows.slice(1).forEach((row) => {
-    const customerName = String(row[customerIdx] || '').trim();
+    const groupCode = String(row[groupCodeIdx] || '').trim();
+    const supplierName = supplierNameIdx >= 0 ? String(row[supplierNameIdx] || '').trim() : '';
     const barcode = sanitizeBarcode(row[barcodeIdx]);
     const itemName = String(row[itemNameIdx] || '').trim() || '名称未設定';
     const plannedQty = toPositiveInt(row[qtyIdx]);
 
-    if (!customerName || !barcode || plannedQty <= 0) return;
+    if (!groupCode || !barcode || plannedQty <= 0) return;
 
-    const customerId = customerName;
+    const customerId = groupCode;
     if (!customers[customerId]) {
       customers[customerId] = {
         id: customerId,
-        name: customerName,
+        groupCode,
+        supplierName,
+        name: groupCode,
         itemsByBarcode: {},
         scanLogs: [],
         status: 'todo',
       };
+    }
+    if (!customers[customerId].supplierName && supplierName) {
+      customers[customerId].supplierName = supplierName;
     }
 
     if (!customers[customerId].itemsByBarcode[barcode]) {
@@ -273,6 +280,7 @@ function buildSessionFromRows(rows, fileName = 'sample') {
         itemName,
         plannedQty: 0,
         checkedQty: 0,
+        lastScannedAt: null,
       };
     }
 
@@ -362,7 +370,12 @@ function renderCustomerList() {
 
   const cards = state.session.customerOrder
     .map(id => state.session.customers[id])
-    .filter(customer => !q || customer.name.toLowerCase().includes(q))
+    .filter((customer) => {
+      if (!q) return true;
+      const groupCode = String(customer.groupCode || customer.name || '').toLowerCase();
+      const supplierName = String(customer.supplierName || '').toLowerCase();
+      return groupCode.includes(q) || supplierName.includes(q);
+    })
     .map(customer => createCustomerCard(customer))
     .join('');
 
@@ -388,6 +401,8 @@ function renderCustomerList() {
 
 function createCustomerCard(customer) {
   const summary = getCustomerSummary(customer);
+  const groupCode = customer.groupCode || customer.name || '-';
+  const supplierName = customer.supplierName || '-';
   const badgeClass = customer.status === 'done'
     ? 'done'
     : customer.status === 'progress'
@@ -398,7 +413,10 @@ function createCustomerCard(customer) {
   return `
     <article class="customer-card ${state.selectedCustomerId === customer.id ? 'active' : ''}">
       <div class="customer-top">
-        <div class="customer-name">${escapeHtml(customer.name)}</div>
+        <div>
+          <div class="customer-name">${escapeHtml(groupCode)}</div>
+          <div class="customer-sub">仕入先: ${escapeHtml(supplierName)}</div>
+        </div>
         <span class="badge ${badgeClass}">${statusLabel(customer.status)}</span>
       </div>
       <div class="customer-meta">
@@ -428,7 +446,9 @@ function renderInspection() {
   }
 
   const summary = getCustomerSummary(customer);
-  els.inspectionTitle.textContent = customer.name;
+  const groupCode = customer.groupCode || customer.name || '-';
+  const supplierName = customer.supplierName || '-';
+  els.inspectionTitle.textContent = `${groupCode}（仕入先: ${supplierName}）`;
   els.overallProgress.textContent = `${summary.checkedQty} / ${summary.plannedQty}`;
   els.overallStatus.textContent = statusLabel(customer.status);
   renderItemTable(customer);
@@ -444,7 +464,12 @@ function renderMode() {
 }
 
 function renderItemTable(customer) {
-  const items = Object.values(customer.itemsByBarcode).sort((a, b) => a.barcode.localeCompare(b.barcode));
+  const items = Object.values(customer.itemsByBarcode).sort((a, b) => {
+    const aTime = a.lastScannedAt ? new Date(a.lastScannedAt).getTime() : 0;
+    const bTime = b.lastScannedAt ? new Date(b.lastScannedAt).getTime() : 0;
+    if (aTime !== bTime) return bTime - aTime;
+    return a.barcode.localeCompare(b.barcode);
+  });
   if (items.length === 0) {
     els.itemTableWrap.className = 'table-wrap empty';
     els.itemTableWrap.textContent = '商品がありません。';
@@ -575,6 +600,7 @@ function applyScan(barcode, qty, mode) {
     itemName: item.itemName,
   };
   customer.scanLogs.push(log);
+  item.lastScannedAt = log.at;
   state.lastAction = {
     customerId: customer.id,
     barcode,
@@ -636,6 +662,7 @@ function resetSupplierInspection(supplierId) {
 
   Object.values(customer.itemsByBarcode).forEach((item) => {
     item.checkedQty = 0;
+    item.lastScannedAt = null;
   });
   customer.scanLogs = [];
   refreshCustomerStatus(customer);

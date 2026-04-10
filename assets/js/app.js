@@ -470,6 +470,10 @@ function renderItemTable(customer) {
     if (aTime !== bTime) return bTime - aTime;
     return a.barcode.localeCompare(b.barcode);
   });
+  const latestScannedTime = items.reduce((latest, item) => {
+    const time = item.lastScannedAt ? new Date(item.lastScannedAt).getTime() : 0;
+    return Math.max(latest, time);
+  }, 0);
   if (items.length === 0) {
     els.itemTableWrap.className = 'table-wrap empty';
     els.itemTableWrap.textContent = '商品がありません。';
@@ -478,8 +482,23 @@ function renderItemTable(customer) {
   const rows = items.map(item => {
     const isDone = item.checkedQty === item.plannedQty;
     const isOver = item.checkedQty > item.plannedQty;
-    const rowClass = isOver ? 'row-over' : isDone ? 'row-complete' : '';
-    const pillClass = isOver ? 'over' : isDone ? 'done' : '';
+    const isUnread = item.checkedQty === 0;
+    const isInProgress = item.checkedQty > 0 && item.checkedQty < item.plannedQty;
+    const isRecent = latestScannedTime > 0
+      && item.lastScannedAt
+      && new Date(item.lastScannedAt).getTime() === latestScannedTime;
+
+    let rowClass = 'row-unread';
+    if (isOver) rowClass = 'row-over';
+    else if (isRecent) rowClass = 'row-recent';
+    else if (isDone) rowClass = 'row-complete';
+    else if (isInProgress) rowClass = 'row-progress';
+
+    let pillClass = 'unread';
+    if (isOver) pillClass = 'over';
+    else if (isDone) pillClass = 'done';
+    else if (isInProgress) pillClass = 'progress';
+
     return `
       <tr class="${rowClass}">
         <td>${escapeHtml(item.barcode)}</td>

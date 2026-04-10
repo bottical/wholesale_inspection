@@ -328,6 +328,9 @@ input[type="number"] {
   top: 0;
   background: var(--surface-soft);
 }
+.row-unread { background: #f8fafc; }
+.row-progress { background: #fff7d6; }
+.row-recent { background: #e8f1ff; }
 .row-complete { background: #f0fdf4; }
 .row-over { background: #fff1f2; }
 .qty-pill {
@@ -337,6 +340,8 @@ input[type="number"] {
   background: #f1f5f9;
   font-weight: 800;
 }
+.qty-pill.unread { background: #f1f5f9; color: #475569; }
+.qty-pill.progress { background: #fff1c2; color: #9a6700; }
 .qty-pill.done { background: var(--ok-soft); color: var(--ok); }
 .qty-pill.over { background: var(--danger-soft); color: var(--danger); }
 
